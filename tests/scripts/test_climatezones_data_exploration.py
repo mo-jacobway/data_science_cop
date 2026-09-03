@@ -47,9 +47,11 @@ import sys
 import traceback
 import datetime
 import logging
+import pathlib
 
 TEST_NAME = "ClimateZones Test"
 RESULT_LEVEL = 60
+DATA_SCIENCE_COP_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 
 
 def get_git_version():
@@ -65,10 +67,16 @@ def get_git_version():
 def get_file_git_status(file_path):
     try:
         unstaged_changes = subprocess.run(
-            ["git", "diff", "--quiet", "--", str(file_path),]).returncode
+            ["git", "diff", "--quiet", "--", str(file_path)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        ).returncode
 
         staged_changes = subprocess.run(
-            ["git", "diff", "--cached", "--quiet", "--", str(file_path),]).returncode
+            ["git", "diff", "--cached", "--quiet", "--", str(file_path)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        ).returncode
 
         if unstaged_changes != 0 or staged_changes != 0:
             return "DIRTY"
@@ -78,8 +86,7 @@ def get_file_git_status(file_path):
 
 def get_git_file_statuses():
     try:
-        from pathlib import Path
-        script_path = Path(__file__).resolve()
+        script_path = pathlib.Path(__file__).resolve()
         wrapper_path = (script_path.parent /"run_test_climatezones_data_exploration.sh").resolve()
 
         return {
@@ -124,8 +131,8 @@ def configure_logging():
             level=logging.INFO,
             format="%(message)s",
         )
-
-        logging.warning("Invalid log level supplied. Falling back to INFO.")
+        if "--log-level" in sys.argv:
+            logging.warning("Invalid log level supplied. Falling back to INFO.")
 
     return logging.getLogger(__name__)
 
@@ -134,11 +141,10 @@ def log_result(message):
 
 def create_artefact_directory():
     try:
-        import pathlib
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        artefact_dir = pathlib.Path("../test_run_logs/climatezones_data_exploration") / timestamp
+        artefact_dir = (DATA_SCIENCE_COP_ROOT/"tests"/"test_run_logs"/"climatezones_data_exploration"/timestamp)
         artefact_dir.mkdir(parents=True, exist_ok=False)
-        pathlib.Path("latest_artefact_dir.txt").write_text(str(artefact_dir.resolve()))
+        (DATA_SCIENCE_COP_ROOT/"tests"/"scripts"/"latest_artefact_dir.txt").write_text(str(artefact_dir.resolve()))
 
         return artefact_dir
     except Exception:
@@ -205,7 +211,6 @@ def main():
 
         import json
         import os
-        import pathlib
 
         import matplotlib
         matplotlib.use("Agg")
@@ -214,7 +219,7 @@ def main():
         import xarray
         import pandas
 
-        CONFIG_PATH = pathlib.Path("../../ml_examples/climate_zones/config.json").resolve()
+        CONFIG_PATH = (DATA_SCIENCE_COP_ROOT/"ml_examples"/"climate_zones"/"config.json")
 
         with open(CONFIG_PATH, "r") as tutorial_config_file:
             tutorial_config = json.load(tutorial_config_file)

@@ -45,6 +45,9 @@ module load "$MODULE" || exit 1
 ENVIRONMENT_HASH="UNAVAILABLE"
 ENVIRONMENT_INVENTORY=""
 
+# Inventory generation occurs within a pipeline and pipefail is
+# intentionally not enabled. Inventory-generation failures therefore
+# leave ENVIRONMENT_INVENTORY empty (handled below) rather than terminating the wrapper.
 ENVIRONMENT_INVENTORY=$(
     find "$SSS_ENV_DIR/conda-meta" \
         -maxdepth 1 \
@@ -75,6 +78,7 @@ echo "Environment Hash: $ENVIRONMENT_HASH"
 echo
 
 cd "$SCRIPT_DIR"
+rm -f latest_artefact_dir.txt
 PYTHON_OUTPUT_FILE="$(mktemp)"
 ARGS=(--module "$MODULE"
     --log-level "$LOG_LEVEL"
@@ -95,49 +99,58 @@ PYTHON_OUTPUT_HASH=$(
 echo "Python Output Hash: $PYTHON_OUTPUT_HASH"
 
 if [[ "$RETENTION" -eq 1 ]]; then
-    ARTEFACT_DIR="$(<latest_artefact_dir.txt)"
+    ARTEFACT_DIR=""
 
-    printf "%s\n" "$ENVIRONMENT_INVENTORY" \
-        > "$ARTEFACT_DIR/environment_inventory.txt"
+    if [[ -f latest_artefact_dir.txt ]]; then
+        ARTEFACT_DIR="$(<latest_artefact_dir.txt)"
+    fi
 
-    printf "%s\n" "$ENVIRONMENT_HASH" \
-        > "$ARTEFACT_DIR/environment_hash.txt"
+    if [[ ! -d "$ARTEFACT_DIR" ]]; then
+        echo "Warning: Retention requested but artefacts could not be retained; skipping retention steps." >&2
+    else
 
-    mv "$PYTHON_OUTPUT_FILE" \
-        "$ARTEFACT_DIR/python_output.txt"
+        printf "%s\n" "$ENVIRONMENT_INVENTORY" \
+            > "$ARTEFACT_DIR/environment_inventory.txt"
 
-    printf "%s\n" "$PYTHON_OUTPUT_HASH" \
-        > "$ARTEFACT_DIR/python_output_hash.txt"
+        printf "%s\n" "$ENVIRONMENT_HASH" \
+            > "$ARTEFACT_DIR/environment_hash.txt"
 
-    for artefact in \
-        "$ARTEFACT_DIR"/*.png \
-        "$ARTEFACT_DIR"/metadata.json
-    do
-        [[ -f "$artefact" ]] || continue
+        mv "$PYTHON_OUTPUT_FILE" \
+            "$ARTEFACT_DIR/python_output.txt"
 
-        ARTEFACT_HASH=$(
-            sha256sum "$artefact" |
+        printf "%s\n" "$PYTHON_OUTPUT_HASH" \
+            > "$ARTEFACT_DIR/python_output_hash.txt"
+
+        for artefact in \
+            "$ARTEFACT_DIR"/*.png \
+            "$ARTEFACT_DIR"/metadata.json
+        do
+            [[ -f "$artefact" ]] || continue
+
+            ARTEFACT_HASH=$(
+                sha256sum "$artefact" |
+                awk '{print $1}'
+            )
+
+            printf "%s\n" "$ARTEFACT_HASH" \
+                > "${artefact%.*}_hash.txt"
+        done
+
+        MASTER_HASH=$(
+            find "$ARTEFACT_DIR" \
+                -maxdepth 1 \
+                -name '*_hash.txt' \
+                ! -name 'environment_hash.txt' |
+            xargs cat |
+            sha256sum |
             awk '{print $1}'
         )
 
-        printf "%s\n" "$ARTEFACT_HASH" \
-            > "${artefact%.*}_hash.txt"
-    done
+        printf "%s\n" "$MASTER_HASH" \
+            > "$ARTEFACT_DIR/master_hash.txt"
 
-    MASTER_HASH=$(
-        find "$ARTEFACT_DIR" \
-            -maxdepth 1 \
-            -name '*_hash.txt' \
-            ! -name 'environment_hash.txt' |
-        xargs cat |
-        sha256sum |
-        awk '{print $1}'
-    )
-
-    printf "%s\n" "$MASTER_HASH" \
-        > "$ARTEFACT_DIR/master_hash.txt"
-
-    echo "Master Hash: $MASTER_HASH"
+        echo "Master Hash: $MASTER_HASH"
+    fi
 fi
 
 rm -f "$PYTHON_OUTPUT_FILE"
