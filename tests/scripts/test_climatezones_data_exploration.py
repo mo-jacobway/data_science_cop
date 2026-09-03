@@ -48,6 +48,7 @@ import traceback
 import datetime
 import logging
 import pathlib
+import os
 
 TEST_NAME = "ClimateZones Test"
 RESULT_LEVEL = 60
@@ -192,6 +193,7 @@ def save_metadata(artefact_dir, git_statuses, git_version):
             "test_name": TEST_NAME,
             "arguments": sys.argv,
             "git_statuses": git_statuses,
+            "loaded_environment": os.environ.get("SSS_ENV_NAME", "UNKNOWN"),
         }
 
         with open(artefact_dir / "metadata.json", "w") as metadata_file:
@@ -210,7 +212,6 @@ def main():
     try:
 
         import json
-        import os
 
         import matplotlib
         matplotlib.use("Agg")

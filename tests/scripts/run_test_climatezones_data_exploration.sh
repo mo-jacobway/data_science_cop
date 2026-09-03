@@ -45,9 +45,15 @@ module load "$MODULE" || exit 1
 ENVIRONMENT_HASH="UNAVAILABLE"
 ENVIRONMENT_INVENTORY=""
 
+# Generate a reproducible inventory of packages present in the loaded
+# environment by listing the conda-meta records. This inventory is
+# subsequently hashed to provide a lightweight environment fingerprint
+# for provenance and future run comparisons.
+#
 # Inventory generation occurs within a pipeline and pipefail is
 # intentionally not enabled. Inventory-generation failures therefore
-# leave ENVIRONMENT_INVENTORY empty (handled below) rather than terminating the wrapper.
+# leave ENVIRONMENT_INVENTORY empty (handled below) rather than
+# terminating the wrapper.
 ENVIRONMENT_INVENTORY=$(
     find "$SSS_ENV_DIR/conda-meta" \
         -maxdepth 1 \
@@ -68,6 +74,7 @@ else
 fi
 
 echo "Module: $MODULE"
+echo "Environment: ${SSS_ENV_NAME:-UNKNOWN}"
 echo "Log Level: $LOG_LEVEL"
 if [[ "$RETENTION" -eq 1 ]]; then
     echo "Retention: ON"
