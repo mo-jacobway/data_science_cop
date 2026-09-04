@@ -49,11 +49,22 @@ import datetime
 import logging
 import pathlib
 import os
+import json
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot
+import cartopy.crs
+import xarray
+import pandas
 
 TEST_NAME = "ClimateZones Test"
 RESULT_LEVEL = 60
 DATA_SCIENCE_COP_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 
+# ---------------------------------------------------------------------
+# Testing framework helpers
+# ---------------------------------------------------------------------
 
 def get_git_version():
     try:
@@ -163,7 +174,6 @@ def save_retained_figures(retained_figures, artefact_dir, retention):
         LOGGER.warning("Retained figures could not be retained.")
 
     try:
-        import matplotlib.pyplot
 
         for _, fig in retained_figures:
             matplotlib.pyplot.close(fig)
@@ -186,7 +196,6 @@ def finalise_run(retention, retained_figures):
 
 def save_metadata(artefact_dir, git_statuses, git_version):
     try:
-        import json
 
         metadata = {
             "git_version": git_version,
@@ -203,6 +212,88 @@ def save_metadata(artefact_dir, git_statuses, git_version):
 
 LOGGER = configure_logging()
 
+# ---------------------------------------------------------------------
+# Notebook workflow helpers
+# ---------------------------------------------------------------------
+
+def get_platform_dir(select_platform, config):
+    try:
+        root_path = pathlib.Path(config['default_dirs'][select_platform]) / 'climate_zones'
+    except KeyError:
+        root_path = pathlib.Path(os.environ['HOME']) / 'climate_zones'
+    return root_path
+
+# Derived from the original tutorial notebook. The notebook implementation
+# accepted root_dir and suffix arguments but relied on enclosing-scope values
+# instead. This helper uses its explicit arguments directly, believed to reflect
+# the original intended behaviour while preserving the resulting workflow paths.
+def get_data_path(root_dir, time_period, scenario_id, prefix, resolution_str, suffix, config):
+    time_dir_template = config['time_dir_template']
+    fname_template = config['fname_template']
+
+    start_year = time_period[0]
+    end_year = time_period[1]
+    if scenario_id == 'historic':
+        data_dir = root_dir / time_dir_template.format(start_year=start_year, end_year=end_year)
+    else:
+        data_dir = root_dir / time_dir_template.format(start_year=start_year, end_year=end_year) / scenario_id
+    data_fname = fname_template.format(prefix=prefix,
+                                        res=resolution_str,
+                                        suffix=suffix)
+    return data_dir / data_fname
+
+def create_climate_zone_diff_plot(historic_climate_zone_ds, future_climate_zone_ds, select_historic, select_future):
+    fig1 = matplotlib.pyplot.figure(figsize=(16, 8))
+
+    ax1 = fig1.add_subplot(1, 1, 1, projection=cartopy.crs.PlateCarree(),)
+    diff_arr = (future_climate_zone_ds["kg_class"]!=historic_climate_zone_ds["kg_class"])
+    diff_arr.plot.contourf(ax=ax1, transform=cartopy.crs.PlateCarree(), cbar_kwargs={"location": "bottom"},)
+
+    ax1.coastlines()
+    ax1.set_title(f"KG Climate Zones diff {select_future} compared to {select_historic}")
+
+    fig1.canvas.draw()
+    return fig1
+
+def create_january_temperature_plot(historic_climate_mean_ds,):
+    january_air_temperature = (historic_climate_mean_ds.loc[{"time": 1}]["air_temperature"])
+    fig1 = matplotlib.pyplot.figure(figsize=(10, 5))
+
+    ax1 = fig1.add_subplot(1, 1, 1,projection=cartopy.crs.PlateCarree(),)
+    january_air_temperature.plot.contourf(ax=ax1,transform=cartopy.crs.PlateCarree(),)
+
+    ax1.coastlines()
+    ax1.set_title("January Air Temperature")
+
+    fig1.canvas.draw()
+    return fig1
+
+def create_climate_subgroup_bar_plot(zones_df,):
+    bar_fig = matplotlib.pyplot.figure(figsize=(8, 5))
+    zones_df['climate_subgroup'].value_counts().plot.bar()
+
+    bar_fig.canvas.draw()
+    return bar_fig
+
+def create_zone_a_temp_histogram(zones_df,):
+    fig1 = matplotlib.pyplot.figure(figsize=(8, 5))
+    ax1 = fig1.add_subplot(1, 1, 1, title="distribution of January Air Temperature - Zone A")
+    zones_df[zones_df["climate_group"] == "A"]["air_temperature_1.0_mean"].hist()
+    ax1.set_xlim(-30, 40)
+
+    fig1.canvas.draw()
+    return fig1
+
+def handle_figure_retention(fig, filename, retention, retained_figures):
+    if retention:
+        retained_figures.append((filename, fig))
+    else:
+        matplotlib.pyplot.close(fig)
+
+# ---------------------------------------------------------------------
+# Notebook derived workflow
+# ---------------------------------------------------------------------
+
 def main():
     LOGGER.info(TEST_NAME)
     LOGGER.info("")
@@ -210,139 +301,55 @@ def main():
     retention, retained_figures = initialise_retention_mode()
 
     try:
-
-        import json
-
-        import matplotlib
-        matplotlib.use("Agg")
-        import matplotlib.pyplot
-        import cartopy.crs
-        import xarray
-        import pandas
-
         CONFIG_PATH = (DATA_SCIENCE_COP_ROOT/"ml_examples"/"climate_zones"/"config.json")
 
         with open(CONFIG_PATH, "r") as tutorial_config_file:
             tutorial_config = json.load(tutorial_config_file)
 
-
-        def get_platform_dir(select_platform, config):
-            try:
-                root_path = pathlib.Path(config['default_dirs'][select_platform]) / 'climate_zones'
-            except KeyError:
-                root_path = pathlib.Path(os.environ['HOME']) / 'climate_zones'
-            return root_path
-
+        # Config retrievals
+        resolutions_dict = {float(k1): v1 for k1, v1 in tutorial_config['resolutions_names'].items()}
+        dataset_prefix_dict = tutorial_config['dataset_prefix']
+        ml_ready_fname_template = tutorial_config['csv_out_template']
         current_platform = tutorial_config['platform']
-        root_data_dir = get_platform_dir(current_platform, tutorial_config)
 
+        # Data locations
+        root_data_dir = get_platform_dir(current_platform, tutorial_config)
         ml_ready_dir = root_data_dir / 'ml_ready'
 
-
-        resolutions_dict = {float(k1): v1 for k1, v1 in tutorial_config['resolutions_names'].items()}
-
-        dataset_prefix_dict = tutorial_config['dataset_prefix']
-
+        # Workflow parameters
         format_str = 'nc'
-        historic_scenario_str = 'historic'
-
-
-        fname_template = tutorial_config['fname_template']
-        time_dir_template = tutorial_config['time_dir_template']
-        ml_ready_fname_template = tutorial_config['csv_out_template']
-
-
         current_res = 1.0
-
-
         select_historic = (1901, 1930)
         select_future = (2071, 2099)
         select_future_scenario = "ssp370"
 
-
-        # Note: accepts root_dir/suffix as arguments but actually uses the enclosing root_data_dir
-        # and format_str variables instead - a known peculiarity of the original notebook, preserved
-        # here unchanged (works as a closure over main()'s locals, same as it previously relied on
-        # module-level globals).
-        def get_data_path(root_dir, time_period, scenario_id, prefix, resolution_str, suffix):
-            start_year = time_period[0]
-            end_year = time_period[1]
-            if scenario_id == historic_scenario_str:
-                data_dir = root_data_dir / time_dir_template.format(start_year=start_year, end_year=end_year)
-            else:
-                data_dir = root_data_dir / time_dir_template.format(start_year=start_year, end_year=end_year) / scenario_id
-            data_fname = fname_template.format(prefix=prefix,
-                                               res=resolution_str,
-                                               suffix=format_str)
-            return data_dir / data_fname
-
-
-        historic_climate_zone_path = get_data_path(root_dir=root_data_dir, time_period=select_historic, scenario_id=historic_scenario_str, prefix=dataset_prefix_dict["climate_zone"],
-                                                   resolution_str=resolutions_dict[current_res], suffix=format_str,)
+        historic_climate_zone_path = get_data_path(root_dir=root_data_dir, time_period=select_historic, scenario_id='historic', prefix=dataset_prefix_dict["climate_zone"],
+                                                   resolution_str=resolutions_dict[current_res], suffix=format_str, config=tutorial_config,)
 
         future_climate_zone_path = get_data_path(root_dir=root_data_dir, time_period=select_future, scenario_id=select_future_scenario, prefix=dataset_prefix_dict["climate_zone"],
-                                                 resolution_str=resolutions_dict[current_res], suffix=format_str,)
+                                                 resolution_str=resolutions_dict[current_res], suffix=format_str, config=tutorial_config,)
 
-        historic_climate_mean_path = get_data_path(root_dir=root_data_dir, time_period=select_historic, scenario_id=historic_scenario_str, prefix=dataset_prefix_dict["climate_mean"],
-                                                   resolution_str=resolutions_dict[current_res], suffix=format_str,)
-
+        historic_climate_mean_path = get_data_path(root_dir=root_data_dir, time_period=select_historic, scenario_id='historic', prefix=dataset_prefix_dict["climate_mean"],
+                                                   resolution_str=resolutions_dict[current_res], suffix=format_str, config=tutorial_config,)
 
         historic_climate_zone_ds = xarray.open_dataset(historic_climate_zone_path)
         future_climate_zone_ds = xarray.open_dataset(future_climate_zone_path)
         historic_climate_mean_ds = xarray.open_dataset(historic_climate_mean_path)
 
-        fig1 = matplotlib.pyplot.figure(figsize=(16, 8))
+        fig1 = create_climate_zone_diff_plot(historic_climate_zone_ds, future_climate_zone_ds, select_historic, select_future)
+        handle_figure_retention(fig1, "01_climate_zone_diff_map.png", retention, retained_figures)
 
-        ax1 = fig1.add_subplot(1, 1, 1, projection=cartopy.crs.PlateCarree(),)
-        diff_arr = (future_climate_zone_ds["kg_class"]!=historic_climate_zone_ds["kg_class"])
-        diff_arr.plot.contourf(ax=ax1, transform=cartopy.crs.PlateCarree(), cbar_kwargs={"location": "bottom"},)
+        fig2 = create_january_temperature_plot(historic_climate_mean_ds,)
+        handle_figure_retention(fig2, "02_january_air_temperature_map.png", retention, retained_figures)
 
-        ax1.coastlines()
-        ax1.set_title(f"KG Climate Zones diff {select_future} compared to {select_historic}")
-
-        fig1.canvas.draw()
-        if retention:
-            retained_figures.append(("01_climate_zone_diff_map.png", fig1))
-        else:
-            matplotlib.pyplot.close(fig1)
-
-
-        january_air_temperature = (historic_climate_mean_ds.loc[{"time": 1}]["air_temperature"])
-        fig1 = matplotlib.pyplot.figure(figsize=(10, 5))
-
-        ax1 = fig1.add_subplot(1, 1, 1,projection=cartopy.crs.PlateCarree(),)
-        january_air_temperature.plot.contourf(ax=ax1,transform=cartopy.crs.PlateCarree(),)
-
-        ax1.coastlines()
-        ax1.set_title("January Air Temperature")
-
-        fig1.canvas.draw()
-        if retention:
-            retained_figures.append(("02_january_air_temperature_map.png", fig1))
-        else:
-            matplotlib.pyplot.close(fig1)
         mlready_data_path = ml_ready_dir / ml_ready_fname_template.format(resolution=resolutions_dict[current_res])
-
         zones_df = pandas.read_csv(mlready_data_path, nrows=25000)
-        bar_fig = matplotlib.pyplot.figure(figsize=(8, 5))
-        zones_df['climate_subgroup'].value_counts().plot.bar()
 
-        bar_fig.canvas.draw()
-        if retention:
-            retained_figures.append(("03_climate_subgroup_bar.png", bar_fig))
-        else:
-            matplotlib.pyplot.close(bar_fig)
+        fig3 = create_climate_subgroup_bar_plot(zones_df)
+        handle_figure_retention(fig3, "03_climate_subgroup_bar.png", retention, retained_figures)
 
-        fig1 = matplotlib.pyplot.figure(figsize=(8, 5))
-        ax1 = fig1.add_subplot(1, 1, 1, title="distribution of January Air Temperature - Zone A")
-        zones_df[zones_df["climate_group"] == "A"]["air_temperature_1.0_mean"].hist()
-        ax1.set_xlim(-30, 40)
-
-        fig1.canvas.draw()
-        if retention:
-            retained_figures.append(("04_zone_a_january_temp_hist.png", fig1))
-        else:
-            matplotlib.pyplot.close(fig1)
+        fig4 = create_zone_a_temp_histogram(zones_df,)
+        handle_figure_retention(fig4, "04_zone_a_january_temp_hist.png", retention, retained_figures)
 
     except Exception as exc:
         category = classify_exception(exc)
