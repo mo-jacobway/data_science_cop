@@ -148,6 +148,7 @@ if [[ "$RETENTION" -eq 1 ]]; then
                 -maxdepth 1 \
                 -name '*_hash.txt' \
                 ! -name 'environment_hash.txt' |
+            sort |
             xargs cat |
             sha256sum |
             awk '{print $1}'

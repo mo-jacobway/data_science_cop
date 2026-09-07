@@ -58,7 +58,7 @@ import cartopy.crs
 import xarray
 import pandas
 
-TEST_NAME = "ClimateZones Test"
+TEST_NAME = "ClimateZones Data Exploration"
 RESULT_LEVEL = 60
 DATA_SCIENCE_COP_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 
