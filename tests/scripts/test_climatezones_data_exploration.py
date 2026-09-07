@@ -92,9 +92,13 @@ def get_file_git_status(file_path):
             stderr=subprocess.DEVNULL,
         ).returncode
 
-        if unstaged_changes != 0 or staged_changes != 0:
+        if unstaged_changes == 0 and staged_changes == 0:
+            return "CLEAN"
+
+        if unstaged_changes == 1 or staged_changes == 1:
             return "DIRTY"
-        return "CLEAN"
+
+        return "UNKNOWN"
     except Exception:
         return "UNKNOWN"
 
