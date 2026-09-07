@@ -9,6 +9,8 @@ derived tests are expected to be added in future.
 
 These are not unit tests of code correctness. Each test runs a reduced, representative workflow derived from a tutorial notebook against a real environment and reports whether it executed successfully.
 
+The tests are currently designed for execution on the Met Office Linux platform and primarily target the `scitools/community/ml` environment.
+
 The goal is to catch environment-breaking regressions (missing packages, broken imports, incompatible
 library versions) before they affect users of the actual tutorials, not to verify scientific or
 numerical correctness of results.
@@ -61,9 +63,11 @@ its exit code unchanged.
 
 `--module <module>` allows the same representative workflow to be used when validating different environment modules.
 
-For example:
+The current ClimateZones test primarily targets the default `scitools/community/ml` environment.
 
-`scitools/community/ml` 
+Environment definition:
+
+https://github.com/MetOffice/ssstack/blob/main/environments/ml-0.1.0.yml
 
 ### Log levels
 
@@ -146,7 +150,7 @@ A NOT SUCCESSFULLY VALIDATED result does not by itself indicate that the environ
 Failure classifications are intended to provide an initial indication of whether the reported
 exception appears likely to be environment-related, unlikely to be environment-related, or cannot be judged from the exception type alone.
 
-- `LIKELY ENVIRONMENT FAILURE` — e.g. missing/broken imports
+- `LIKELY ENVIRONMENT FAILURE`
 - `UNCLEAR WHETHER ENVIRONMENT FAILURE` — e.g. permission or memory errors, which may or may not be
   environment-related
 - `LIKELY NON-ENVIRONMENT FAILURE` — everything else (default), including data/file issues that are

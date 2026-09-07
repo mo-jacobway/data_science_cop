@@ -67,6 +67,7 @@ DATA_SCIENCE_COP_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 # ---------------------------------------------------------------------
 
 def get_git_version():
+    """Capture the executed repository revision as part of run provenance."""
     try:
         return subprocess.check_output(
             ["git", "rev-parse", "--short", "HEAD"],
@@ -77,6 +78,7 @@ def get_git_version():
         return "unknown"
 
 def get_file_git_status(file_path):
+    """Determine whether a framework file was modified at execution time."""
     try:
         unstaged_changes = subprocess.run(
             ["git", "diff", "--quiet", "--", str(file_path)],
@@ -97,6 +99,7 @@ def get_file_git_status(file_path):
         return "UNKNOWN"
 
 def get_git_file_statuses():
+    """Collect repository cleanliness information for key framework files."""
     try:
         script_path = pathlib.Path(__file__).resolve()
         wrapper_path = (script_path.parent /"run_test_climatezones_data_exploration.sh").resolve()
@@ -112,6 +115,7 @@ def get_git_file_statuses():
         }
 
 def classify_exception(exc):
+    """Provide an initial indication of whether a failure may be environment related."""
     if isinstance(exc, (ModuleNotFoundError, ImportError)):
         return "LIKELY ENVIRONMENT FAILURE"
     if isinstance(exc, (PermissionError, MemoryError)):
@@ -119,10 +123,12 @@ def classify_exception(exc):
     return "LIKELY NON-ENVIRONMENT FAILURE"
 
 def initialise_retention_mode():
+    """Initialise the framework's optional run-retention functionality."""
     retention = "--retention" in sys.argv
     return retention, []
 
 def configure_logging():
+    """Configure framework logging and support the custom RESULT level."""
     logging.addLevelName(RESULT_LEVEL, "RESULT")
     try:
         log_level_index = sys.argv.index("--log-level")
@@ -149,9 +155,11 @@ def configure_logging():
     return logging.getLogger(__name__)
 
 def log_result(message):
+    """Emit the authoritative validation outcome for the current run."""
     LOGGER.log(RESULT_LEVEL, message)
 
 def create_artefact_directory():
+    """Create a unique retention location for this test run."""
     try:
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         artefact_dir = (DATA_SCIENCE_COP_ROOT/"tests"/"test_run_logs"/"climatezones_data_exploration"/timestamp)
@@ -165,6 +173,7 @@ def create_artefact_directory():
 
 
 def save_retained_figures(retained_figures, artefact_dir, retention):
+    """Persist retained figures so workflow outputs can be inspected after execution."""
     if not retention:
         return
     try:
@@ -181,6 +190,7 @@ def save_retained_figures(retained_figures, artefact_dir, retention):
         pass
 
 def finalise_run(retention, retained_figures):
+    """Perform final reporting and retention activities before test exit."""
     git_statuses = get_git_file_statuses()
     git_version = get_git_version()
     LOGGER.info("")
@@ -195,6 +205,7 @@ def finalise_run(retention, retained_figures):
         save_retained_figures(retained_figures, artefact_dir, retention)
 
 def save_metadata(artefact_dir, git_statuses, git_version):
+    """Retain provenance information required to identify the executed test context."""
     try:
 
         metadata = {
@@ -217,17 +228,22 @@ LOGGER = configure_logging()
 # ---------------------------------------------------------------------
 
 def get_platform_dir(select_platform, config):
+    """Resolve the ClimateZones data location for the selected execution platform."""
     try:
         root_path = pathlib.Path(config['default_dirs'][select_platform]) / 'climate_zones'
     except KeyError:
         root_path = pathlib.Path(os.environ['HOME']) / 'climate_zones'
     return root_path
 
-# Derived from the original tutorial notebook. The notebook implementation
-# accepted root_dir and suffix arguments but relied on enclosing-scope values
-# instead. This helper uses its explicit arguments directly, believed to reflect
-# the original intended behaviour while preserving the resulting workflow paths.
 def get_data_path(root_dir, time_period, scenario_id, prefix, resolution_str, suffix, config):
+    """
+    Construct a ClimateZones dataset path for the validation workflow.
+
+    Derived from the original tutorial notebook. The notebook implementation
+    accepted root_dir and suffix arguments but relied on enclosing-scope values
+    instead. This implementation uses the explicit arguments directly while
+    preserving the resulting workflow paths.
+    """
     time_dir_template = config['time_dir_template']
     fname_template = config['fname_template']
 
@@ -243,6 +259,7 @@ def get_data_path(root_dir, time_period, scenario_id, prefix, resolution_str, su
     return data_dir / data_fname
 
 def create_climate_zone_diff_plot(historic_climate_zone_ds, future_climate_zone_ds, select_historic, select_future):
+    """Generate the climate-zone change map used by the validation workflow."""
     fig1 = matplotlib.pyplot.figure(figsize=(16, 8))
 
     ax1 = fig1.add_subplot(1, 1, 1, projection=cartopy.crs.PlateCarree(),)
@@ -256,6 +273,7 @@ def create_climate_zone_diff_plot(historic_climate_zone_ds, future_climate_zone_
     return fig1
 
 def create_january_temperature_plot(historic_climate_mean_ds,):
+    """Generate the January air-temperature map used by the validation workflow."""
     january_air_temperature = (historic_climate_mean_ds.loc[{"time": 1}]["air_temperature"])
     fig1 = matplotlib.pyplot.figure(figsize=(10, 5))
 
@@ -269,6 +287,7 @@ def create_january_temperature_plot(historic_climate_mean_ds,):
     return fig1
 
 def create_climate_subgroup_bar_plot(zones_df,):
+    """Generate a climate-subgroup distribution plot from the workflow dataset."""
     bar_fig = matplotlib.pyplot.figure(figsize=(8, 5))
     zones_df['climate_subgroup'].value_counts().plot.bar()
 
@@ -276,6 +295,7 @@ def create_climate_subgroup_bar_plot(zones_df,):
     return bar_fig
 
 def create_zone_a_temp_histogram(zones_df,):
+    """Generate the Zone A January-temperature histogram."""
     fig1 = matplotlib.pyplot.figure(figsize=(8, 5))
     ax1 = fig1.add_subplot(1, 1, 1, title="distribution of January Air Temperature - Zone A")
     zones_df[zones_df["climate_group"] == "A"]["air_temperature_1.0_mean"].hist()
@@ -285,6 +305,7 @@ def create_zone_a_temp_histogram(zones_df,):
     return fig1
 
 def handle_figure_retention(fig, filename, retention, retained_figures):
+    """Retain or close a figure according to the selected retention mode."""
     if retention:
         retained_figures.append((filename, fig))
     else:
