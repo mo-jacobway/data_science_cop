@@ -1,24 +1,35 @@
 #!/usr/bin/env bash
 #
-# Bash wrapper for test_climatezones_data_exploration.py.
+# Generic environment-validation test wrapper.
+#
+# Loads the requested environment module, then invokes the selected
+# notebook-derived validation test.
 #
 # Loads the community environment module, then invokes the Python test script,
 # propagating its exit code unchanged. Contains no test logic and no
 # Cylc-specific behaviour; runnable manually now, and later from Cylc.
 #
 # Usage:
-#   ./run_test_climatezones_data_exploration.sh [--module <module>] [--retention]
+#   ./run_test.sh --test <test_name> [--module <module>] [--retention] [--log-level <level>]
 #
-# Default module: scitools/community/ml
-# --retention: activates the Python script's artefact-retention mode (off by default).
+#   --test: specifies the test to run from data_science_cop tests/scripts (required). e.g. "climatezones_data_exploration".
+#   --module: specifies the environment module to load (default: scitools/community/ml).
+#   --retention: activates the Python script's artefact-retention mode (off by default).
+#   --log-level: sets the log level for the Python script (default: INFO).
+
 set -eu
 
 MODULE="scitools/community/ml"
 RETENTION=0
 LOG_LEVEL="INFO"
+TEST=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --test)
+            TEST="$2"
+            shift 2
+            ;;
         --module)
             MODULE="$2"
             shift 2
@@ -39,6 +50,19 @@ while [[ $# -gt 0 ]]; do
 done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+if [[ -z "$TEST" ]]; then
+    echo "No test specified. Use --test <test_name>" >&2
+    exit 1
+fi
+
+TEST_SCRIPT="test_${TEST}.py"
+
+if [[ ! -f "$TEST_SCRIPT" ]]; then
+    echo "Test script not found: $TEST_SCRIPT" >&2
+    exit 1
+fi
 
 module load "$MODULE" || exit 1
 
@@ -84,17 +108,18 @@ fi
 echo "Environment Hash: $ENVIRONMENT_HASH"
 echo
 
-cd "$SCRIPT_DIR"
 rm -f latest_artefact_dir.txt
 PYTHON_OUTPUT_FILE="$(mktemp)"
-ARGS=(--module "$MODULE"
+ARGS=(
+    --test "$TEST"
+    --module "$MODULE"
     --log-level "$LOG_LEVEL"
 )
 if [[ "$RETENTION" -eq 1 ]]; then
     ARGS+=(--retention)
 fi
 set +e
-python test_climatezones_data_exploration.py "${ARGS[@]}" > "$PYTHON_OUTPUT_FILE" 2>&1
+python "$TEST_SCRIPT" "${ARGS[@]}" > "$PYTHON_OUTPUT_FILE" 2>&1
 PYTHON_EXIT_CODE=$?
 set -e
 

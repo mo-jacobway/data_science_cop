@@ -36,25 +36,27 @@ Framework-level functionality includes:
 - Logging controls
 - Wrapper execution support
 
-Each test contributes only its workflow-specific content, configuration and data access logic.
+Each test contributes only its workflow-specific content, configuration and data access logic, while execution is provided through the common framework and generic wrapper.
 
 ## How to run
 
 Run the wrapper script from `tests/scripts/`:
 
 ```bash
-./run_test_climatezones_data_exploration.sh
+./run_test.sh --test <test_name> [--module <module>] [--retention] [--log-level <level>]
+
 ```
 
 Options:
 
 | Flag | Purpose | Default |
 |---|---|---|
+| `--test <test>` | Notebook-derived validation test to execute | n/a (required) |
 | `--module <module>` | Environment module to load before running the test | `scitools/community/ml` |
 | `--retention` | Save figures, metadata, and artefacts from the run | off |
 | `--log-level <level>` | Logging verbosity (e.g. `DEBUG`, `INFO`, `WARNING`, `RESULT`) | `INFO` |
 
-The wrapper loads the specified environment module, invokes the Python test script, and propagates
+The wrapper loads the specified environment module, invokes the selected notebook-derived validation test, and propagates
 its exit code unchanged.
 
 ## Validation artefacts, provenance and hashing
@@ -162,7 +164,7 @@ troubleshooting easier, not to replace it.
 
 ## Current status and future direction
 
-- One test is currently implemented (ClimateZones Data Exploration).
+- One test is currently implemented (`climatezones_data_exploration`).
 - More notebook-derived tests are expected to be added, reusing the framework-level functionality
   described above.
 - Automated scheduling via Cylc is expected in future.

@@ -10,3 +10,6 @@ AGENTS.md
 # ClimateZones test generated artefacts
 tests/scripts/latest_artefact_dir.txt
 tests/test_run_logs/
+
+# Local archived design / scratch work
+tests/scripts/probably archived working stuff/

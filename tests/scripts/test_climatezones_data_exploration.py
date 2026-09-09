@@ -20,7 +20,7 @@ This script forms part of an environment-validation framework.
 
 It is intended to be executed via:
 
-    run_test_climatezones_data_exploration.sh
+    run_test.sh --test climatezones_data_exploration [--module <module>] [--retention] [--log-level <level>]
 
 which loads the environment under test and invokes this script.
 
@@ -58,13 +58,20 @@ import cartopy.crs
 import xarray
 import pandas
 
-TEST_NAME = "ClimateZones Data Exploration"
 RESULT_LEVEL = 60
 DATA_SCIENCE_COP_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 
 # ---------------------------------------------------------------------
 # Testing framework helpers
 # ---------------------------------------------------------------------
+
+def get_test_name():
+    """Retrieve the test name supplied by the wrapper."""
+    try:
+        test_name_index = sys.argv.index("--test")
+        return sys.argv[test_name_index + 1]
+    except Exception:
+        return "UNKNOWN_TEST_NAME"
 
 def get_git_version():
     """Capture the executed repository revision as part of run provenance."""
@@ -106,7 +113,7 @@ def get_git_file_statuses():
     """Collect repository cleanliness information for key framework files."""
     try:
         script_path = pathlib.Path(__file__).resolve()
-        wrapper_path = (script_path.parent /"run_test_climatezones_data_exploration.sh").resolve()
+        wrapper_path = (script_path.parent /"run_test.sh").resolve()
 
         return {
             "python_script": get_file_git_status(script_path),
@@ -166,7 +173,7 @@ def create_artefact_directory():
     """Create a unique retention location for this test run."""
     try:
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        artefact_dir = (DATA_SCIENCE_COP_ROOT/"tests"/"test_run_logs"/"climatezones_data_exploration"/timestamp)
+        artefact_dir = (DATA_SCIENCE_COP_ROOT/"tests"/"test_run_logs"/TEST_NAME/timestamp)
         artefact_dir.mkdir(parents=True, exist_ok=False)
         (DATA_SCIENCE_COP_ROOT/"tests"/"scripts"/"latest_artefact_dir.txt").write_text(str(artefact_dir.resolve()))
 
@@ -214,7 +221,6 @@ def save_metadata(artefact_dir, git_statuses, git_version):
 
         metadata = {
             "git_version": git_version,
-            "test_name": TEST_NAME,
             "arguments": sys.argv,
             "git_statuses": git_statuses,
             "loaded_environment": os.environ.get("SSS_ENV_NAME", "UNKNOWN"),
@@ -225,6 +231,7 @@ def save_metadata(artefact_dir, git_statuses, git_version):
     except Exception:
         LOGGER.warning("Metadata could not be retained.")
 
+TEST_NAME = get_test_name()
 LOGGER = configure_logging()
 
 # ---------------------------------------------------------------------
