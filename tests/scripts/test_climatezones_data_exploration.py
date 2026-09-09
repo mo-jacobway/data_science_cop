@@ -65,6 +65,8 @@ DATA_SCIENCE_COP_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 # Testing framework helpers
 # ---------------------------------------------------------------------
 
+# Framework configuration
+
 def get_test_name():
     """Retrieve the test name supplied by the wrapper."""
     try:
@@ -72,6 +74,40 @@ def get_test_name():
         return sys.argv[test_name_index + 1]
     except Exception:
         return "UNKNOWN_TEST_NAME"
+
+def initialise_retention_mode():
+    """Initialise the framework's optional run-retention functionality."""
+    retention = "--retention" in sys.argv
+    return retention, []
+
+def configure_logging():
+    """Configure framework logging and support the custom RESULT level."""
+    logging.addLevelName(RESULT_LEVEL, "RESULT")
+    try:
+        log_level_index = sys.argv.index("--log-level")
+        supplied_level = sys.argv[log_level_index + 1].upper()
+
+        if supplied_level == "RESULT":
+            logging_level = RESULT_LEVEL
+        else:
+            logging_level = getattr(logging, supplied_level)
+
+        logging.basicConfig(
+            level=logging_level,
+            format="%(message)s",
+        )
+
+    except Exception:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(message)s",
+        )
+        if "--log-level" in sys.argv:
+            logging.warning("Invalid log level supplied. Falling back to INFO.")
+
+    return logging.getLogger(__name__)
+
+# Provenance
 
 def get_git_version():
     """Capture the executed repository revision as part of run provenance."""
@@ -125,49 +161,7 @@ def get_git_file_statuses():
             "bash_wrapper": "UNKNOWN",
         }
 
-def classify_exception(exc):
-    """Provide an initial indication of whether a failure may be environment related."""
-    if isinstance(exc, (ModuleNotFoundError, ImportError)):
-        return "LIKELY ENVIRONMENT FAILURE"
-    if isinstance(exc, (PermissionError, MemoryError)):
-        return "UNCLEAR WHETHER ENVIRONMENT FAILURE"
-    return "LIKELY NON-ENVIRONMENT FAILURE"
-
-def initialise_retention_mode():
-    """Initialise the framework's optional run-retention functionality."""
-    retention = "--retention" in sys.argv
-    return retention, []
-
-def configure_logging():
-    """Configure framework logging and support the custom RESULT level."""
-    logging.addLevelName(RESULT_LEVEL, "RESULT")
-    try:
-        log_level_index = sys.argv.index("--log-level")
-        supplied_level = sys.argv[log_level_index + 1].upper()
-
-        if supplied_level == "RESULT":
-            logging_level = RESULT_LEVEL
-        else:
-            logging_level = getattr(logging, supplied_level)
-
-        logging.basicConfig(
-            level=logging_level,
-            format="%(message)s",
-        )
-
-    except Exception:
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(message)s",
-        )
-        if "--log-level" in sys.argv:
-            logging.warning("Invalid log level supplied. Falling back to INFO.")
-
-    return logging.getLogger(__name__)
-
-def log_result(message):
-    """Emit the authoritative validation outcome for the current run."""
-    LOGGER.log(RESULT_LEVEL, message)
+# Retention
 
 def create_artefact_directory():
     """Create a unique retention location for this test run."""
@@ -181,7 +175,6 @@ def create_artefact_directory():
     except Exception:
         LOGGER.warning("Run artefacts could not be retained.")
         return None
-
 
 def save_retained_figures(retained_figures, artefact_dir, retention):
     """Persist retained figures so workflow outputs can be inspected after execution."""
@@ -200,21 +193,6 @@ def save_retained_figures(retained_figures, artefact_dir, retention):
     except Exception:
         pass
 
-def finalise_run(retention, retained_figures):
-    """Perform final reporting and retention activities before test exit."""
-    git_statuses = get_git_file_statuses()
-    git_version = get_git_version()
-    LOGGER.info("")
-    LOGGER.info(f"Git Version: {git_version}")
-    LOGGER.info(f"Python Script Status: {git_statuses['python_script']}")
-    LOGGER.info(f"Bash Wrapper Status: {git_statuses['bash_wrapper']}")
-    LOGGER.info("")
-    artefact_dir = None
-    if retention:
-        artefact_dir = create_artefact_directory()
-        save_metadata(artefact_dir, git_statuses, git_version)
-        save_retained_figures(retained_figures, artefact_dir, retention)
-
 def save_metadata(artefact_dir, git_statuses, git_version):
     """Retain provenance information required to identify the executed test context."""
     try:
@@ -231,8 +209,78 @@ def save_metadata(artefact_dir, git_statuses, git_version):
     except Exception:
         LOGGER.warning("Metadata could not be retained.")
 
+def handle_figure_retention(fig, filename, retention, retained_figures):
+    """Retain or close a figure according to the selected retention mode."""
+    if retention:
+        retained_figures.append((filename, fig))
+    else:
+        matplotlib.pyplot.close(fig)
+
+# Finalisation
+
+def finalise_run(retention, retained_figures):
+    """Perform final reporting and retention activities before test exit."""
+    git_statuses = get_git_file_statuses()
+    git_version = get_git_version()
+    LOGGER.info("")
+    LOGGER.info(f"Git Version: {git_version}")
+    LOGGER.info(f"Python Script Status: {git_statuses['python_script']}")
+    LOGGER.info(f"Bash Wrapper Status: {git_statuses['bash_wrapper']}")
+    LOGGER.info("")
+    artefact_dir = None
+    if retention:
+        artefact_dir = create_artefact_directory()
+        save_metadata(artefact_dir, git_statuses, git_version)
+        save_retained_figures(retained_figures, artefact_dir, retention)
+
+# Result handling
+
+def classify_exception(exc):
+    """Provide an initial indication of whether a failure may be environment related."""
+    if isinstance(exc, (ModuleNotFoundError, ImportError)):
+        return "LIKELY ENVIRONMENT FAILURE"
+    if isinstance(exc, (PermissionError, MemoryError)):
+        return "UNCLEAR WHETHER ENVIRONMENT FAILURE"
+    return "LIKELY NON-ENVIRONMENT FAILURE"
+
+def log_result(message):
+    """Emit the authoritative validation outcome for the current run."""
+    LOGGER.log(RESULT_LEVEL, message)
+
+def handle_exception(exc, retention, retained_figures):
+    category = classify_exception(exc)
+    log_result("RESULT:")
+    log_result("NOT SUCCESSFULLY VALIDATED")
+    LOGGER.error("")
+    LOGGER.error("Failure Category:")
+    LOGGER.error(category)
+    LOGGER.error("")
+    LOGGER.error("Exception:")
+    LOGGER.error(f"{type(exc).__name__}: {exc}")
+    LOGGER.error(traceback.format_exc())
+    finalise_run(retention, retained_figures)
+    return 1
+
+def handle_success(retention, retained_figures):
+    log_result("RESULT:")
+    log_result("VALIDATED")
+    finalise_run(retention, retained_figures)
+    return 0
+
+# Workflow execution
+
+def execute_workflow():
+    try:
+        run_notebook_derived_workflow()
+    except Exception as exc:
+        return handle_exception(exc, retention, retained_figures)
+
+    return handle_success(retention, retained_figures)
+
 TEST_NAME = get_test_name()
 LOGGER = configure_logging()
+
+retention, retained_figures = initialise_retention_mode()
 
 # ---------------------------------------------------------------------
 # Notebook workflow helpers
@@ -315,24 +363,11 @@ def create_zone_a_temp_histogram(zones_df,):
     fig1.canvas.draw()
     return fig1
 
-def handle_figure_retention(fig, filename, retention, retained_figures):
-    """Retain or close a figure according to the selected retention mode."""
-    if retention:
-        retained_figures.append((filename, fig))
-    else:
-        matplotlib.pyplot.close(fig)
-
 # ---------------------------------------------------------------------
 # Notebook derived workflow
 # ---------------------------------------------------------------------
 
-def main():
-    LOGGER.info(TEST_NAME)
-    LOGGER.info("")
-
-    retention, retained_figures = initialise_retention_mode()
-
-    try:
+def run_notebook_derived_workflow():
         CONFIG_PATH = (DATA_SCIENCE_COP_ROOT/"ml_examples"/"climate_zones"/"config.json")
 
         with open(CONFIG_PATH, "r") as tutorial_config_file:
@@ -383,26 +418,7 @@ def main():
         fig4 = create_zone_a_temp_histogram(zones_df,)
         handle_figure_retention(fig4, "04_zone_a_january_temp_hist.png", retention, retained_figures)
 
-    except Exception as exc:
-        category = classify_exception(exc)
-        log_result("RESULT:")
-        log_result("NOT SUCCESSFULLY VALIDATED")
-        LOGGER.error("")
-        LOGGER.error("Failure Category:")
-        LOGGER.error(category)
-        LOGGER.error("")
-        LOGGER.error("Exception:")
-        LOGGER.error(f"{type(exc).__name__}: {exc}")
-        LOGGER.error(traceback.format_exc())
-        finalise_run(retention, retained_figures)
-        return 1
-
-    log_result("RESULT:")
-    log_result("VALIDATED")
-    finalise_run(retention, retained_figures)
-
-    return 0
-
-
 if __name__ == "__main__":
-    sys.exit(main())
+    LOGGER.info(TEST_NAME)
+    LOGGER.info("")
+    sys.exit(execute_workflow())
