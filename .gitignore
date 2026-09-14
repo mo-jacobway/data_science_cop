@@ -13,3 +13,7 @@ tests/test_run_logs/
 
 # Local archived design / scratch work
 tests/scripts/probably archived working stuff/
+
+# Python bytecode
+__pycache__/
+*.pyc

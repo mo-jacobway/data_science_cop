@@ -44,7 +44,7 @@ import matplotlib
 import matplotlib.pyplot
 
 RESULT_LEVEL = 60
-DATA_SCIENCE_COP_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
+DATA_SCIENCE_COP_ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # ---------------------------------------------------------------------
 # Testing framework helpers
@@ -134,9 +134,9 @@ def get_git_file_statuses():
     """Collect repository cleanliness information for key framework files."""
     try:
         return {
-            "test_script": get_file_git_status(DATA_SCIENCE_COP_ROOT/"tests"/"scripts"/f"test_{TEST_NAME}.py"),
-            "test_framework_utils": get_file_git_status(DATA_SCIENCE_COP_ROOT/"tests"/"scripts"/"test_framework_utils.py"),
-            "run_test_wrapper": get_file_git_status(DATA_SCIENCE_COP_ROOT/"tests"/"scripts"/"run_test.sh"),
+            "test_script": get_file_git_status(DATA_SCIENCE_COP_ROOT/"tests"/"notebook_derived_tests"/f"test_{TEST_NAME}.py"),
+            "test_framework_utils": get_file_git_status(DATA_SCIENCE_COP_ROOT/"tests"/"test_framework_utils.py"),
+            "run_test_wrapper": get_file_git_status(DATA_SCIENCE_COP_ROOT/"tests"/"run_test.sh"),
             }
     except Exception:
         return {
@@ -153,7 +153,7 @@ def create_artefact_directory():
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         artefact_dir = (DATA_SCIENCE_COP_ROOT/"tests"/"test_run_logs"/TEST_NAME/timestamp)
         artefact_dir.mkdir(parents=True, exist_ok=False)
-        (DATA_SCIENCE_COP_ROOT/"tests"/"scripts"/"latest_artefact_dir.txt").write_text(str(artefact_dir.resolve()))
+        (DATA_SCIENCE_COP_ROOT/"tests"/"latest_artefact_dir.txt").write_text(str(artefact_dir.resolve()))
 
         return artefact_dir
     except Exception:

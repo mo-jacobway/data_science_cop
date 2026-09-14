@@ -12,7 +12,7 @@
 # Usage:
 #   ./run_test.sh --test <test_name> [--module <module>] [--retention] [--log-level <level>]
 #
-#   --test: specifies the test to run from data_science_cop tests/scripts (required). e.g. "climatezones_data_exploration".
+#   --test: specifies the test to run from data_science_cop tests/notebook_derived_tests (required). e.g. "climatezones_data_exploration".
 #   --module: specifies the environment module to load (default: scitools/community/ml).
 #   --retention: activates the Python script's artefact-retention mode (off by default).
 #   --log-level: sets the log level for the Python script (default: INFO).
@@ -49,15 +49,15 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$TESTS_DIR"
 
 if [[ -z "$TEST" ]]; then
     echo "No test specified. Use --test <test_name>" >&2
     exit 1
 fi
 
-TEST_SCRIPT="test_${TEST}.py"
+TEST_SCRIPT="notebook_derived_tests/test_${TEST}.py"
 
 if [[ ! -f "$TEST_SCRIPT" ]]; then
     echo "Test script not found: $TEST_SCRIPT" >&2
@@ -108,7 +108,6 @@ fi
 echo "Environment Hash: $ENVIRONMENT_HASH"
 echo
 
-rm -f latest_artefact_dir.txt
 PYTHON_OUTPUT_FILE="$(mktemp)"
 ARGS=(
     --test "$TEST"
@@ -184,6 +183,7 @@ if [[ "$RETENTION" -eq 1 ]]; then
 
         echo "Master Hash: $MASTER_HASH"
     fi
+    rm -f latest_artefact_dir.txt
 fi
 
 rm -f "$PYTHON_OUTPUT_FILE"
