@@ -26,16 +26,39 @@ validating an environment.
 Each test exercises a reduced but representative workflow, allowing environment changes and updates to
 be checked quickly and eventually automated through systems such as Cylc.
 
-## Framework vs test
+## Framework architecture
 
-The framework is designed to support multiple tests, each built around a different notebook-derived
-workflow.
+The environment-validation framework is composed of three main layers.
 
-Framework functionality is shared between tests and provided through the
-test-agnostic bash wrapper "`run_test.sh`" and `test_framework_utils.py`.
+### Wrapper (`run_test.sh`)
 
-Each test (`test_<workflow>.py`) contributes its workflow-specific implementation, supporting helper
-functions, configuration and data-access logic.
+The test-agnostic bash wrapper executes the validation framework. It loads
+the requested environment module, invokes the selected notebook-derived
+validation test, and performs framework-level execution tasks such as hashing
+and retention-related processing.
+
+### Notebook-derived validation tests (`notebook_derived_tests/`)
+
+Notebook-derived validation tests contain the reduced representative workflow
+derived from a tutorial notebook.
+
+These tests invoke the shared framework functionality provided by
+`test_framework_utils.py` rather than implementing that functionality
+independently.
+
+New notebook-derived validation tests should normally be created by copying
+`validation_test_template.py`. The template provides the standard structure
+for notebook-derived tests, including integration with the framework
+utilities.
+
+Completed tests should be placed within `notebook_derived_tests/` and named
+according to the convention `test_<origin_notebook_name>.py`.
+
+### Framework utilities (`test_framework_utils.py`)
+
+`test_framework_utils.py` provides functionality shared across
+notebook-derived validation tests, allowing common framework behaviour to be
+implemented once and reused by multiple tests.
 
 ## How to run
 

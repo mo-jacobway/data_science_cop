@@ -12,12 +12,13 @@ expected to be executed via:
 
     run_test.sh --test <test_name>
 
-and should invoke these utilities through:
+New notebook-derived validation tests should normally be created from
+validation_test_template.py.
 
-    test_framework_utils.execute_workflow(run_workflow)
-
-where run_workflow is the notebook-derived workflow implementation for that
-validation test.
+The wrapper invokes the selected notebook-derived test, which in turn uses
+the utilities provided by this module to implement the workflow-agnostic
+aspects of the environment-validation framework, including workflow
+execution, validation reporting, provenance capture and artefact retention.
 
 The utilities in this module are intentionally independent of any specific
 notebook-derived workflow and are intended to be reused across all validation
@@ -26,7 +27,7 @@ tests.
 * Author: Jacob Way
 * Affiliation: UK Met Office
 * History: 1.0
-* Last update: 2026-08-28
+* Last update: 2026-09-15
 * (c) British Crown Copyright 2026, Met Office. Please see LICENSE.md for
   license details.
 """
