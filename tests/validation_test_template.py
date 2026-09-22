@@ -87,7 +87,7 @@ References
 **
   """
 
-##notebook derived imports##
+# ##notebook derived imports##
 
 import pathlib
 import sys
@@ -98,13 +98,13 @@ import test_framework_utils as test_framework
 # Notebook workflow helpers
 # ---------------------------------------------------------------------
 
-##any and all helper functions to support and improve code readability of the notebook derived workflow in the below function##
+# ##any and all helper functions to support and improve code readability of the notebook derived workflow in the below function##
 
 # ---------------------------------------------------------------------
 # Notebook derived workflow
 # ---------------------------------------------------------------------
 
 def run_notebook_derived_workflow():
-    ###full notebook derived workflow##
+    pass # ###replace with the full notebook derived workflow###
 if __name__ == "__main__":
     sys.exit(test_framework.execute_workflow(run_notebook_derived_workflow))

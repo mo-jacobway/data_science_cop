@@ -42,6 +42,7 @@ import os
 import json
 
 import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot
 
 RESULT_LEVEL = 60
