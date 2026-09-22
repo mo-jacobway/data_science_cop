@@ -2,17 +2,11 @@
 *.DS_Store
 challenges/2023_cloud_classification/src/example_code/mlruns/
 
-# Local planning artefacts (handover docs, implementation plans, task
-# breakdowns) - intentionally kept out of pull requests / deliverables.
-.planning/
-AGENTS.md
 
 # ClimateZones test generated artefacts
 tests/scripts/latest_artefact_dir.txt
 tests/test_run_logs/
 
-# Local archived design / scratch work
-tests/scripts/probably archived working stuff/
 
 # Python bytecode
 __pycache__/
