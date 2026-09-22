@@ -87,12 +87,13 @@ References
 **
   """
 
-# ##notebook derived imports##
-
 import pathlib
 import sys
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parent.parent))
 import test_framework_utils as test_framework
+
+# ##notebook derived imports##
+
 
 # ---------------------------------------------------------------------
 # Notebook workflow helpers

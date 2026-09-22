@@ -116,6 +116,7 @@ ARGS=(
 )
 if [[ "$RETENTION" -eq 1 ]]; then
     ARGS+=(--retention)
+    rm -f latest_artefact_dir.txt
 fi
 set +e
 python "$TEST_SCRIPT" "${ARGS[@]}" > "$PYTHON_OUTPUT_FILE" 2>&1

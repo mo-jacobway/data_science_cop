@@ -58,7 +58,10 @@ def get_test_name():
     """Retrieve the test name supplied by the wrapper."""
     try:
         test_name_index = sys.argv.index("--test")
-        return sys.argv[test_name_index + 1]
+        test_name = sys.argv[test_name_index + 1]
+        if not test_name.isidentifier():
+            return "INVALID_TEST_NAME"
+        return test_name
     except Exception:
         return "UNKNOWN_TEST_NAME"
 
