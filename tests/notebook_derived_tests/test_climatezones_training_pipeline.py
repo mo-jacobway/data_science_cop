@@ -95,12 +95,11 @@ def run_notebook_derived_workflow():
     current_res = 1.0
     mlready_data_path = ml_ready_dir / ml_ready_fname_template.format(resolution=resolutions_dict[current_res])
     zones_df = pandas.read_csv(mlready_data_path)
+    zones_df = zones_df.groupby(['period_start','scenario']).sample(frac=0.05, random_state=random_seed)
 
     predictors_dict = {
         'precip_mean': [c1 for c1 in zones_df.columns if 'precipitation' in c1 and 'mean' in c1],
-        'precip_std': [c1 for c1 in zones_df.columns if 'precipitation' in c1 and 'std' in c1],
         'temp_mean': [c1 for c1 in zones_df.columns if 'air_temperature' in c1 and 'mean' in c1],
-        'temp_std': [c1 for c1 in zones_df.columns if 'air_temperature' in c1 and 'std' in c1],
     }
 
     predictors = predictors_dict['precip_mean'] + predictors_dict['temp_mean']
@@ -121,9 +120,9 @@ def run_notebook_derived_workflow():
     y_train = target_encoder.transform(train_df[[target_var]])
 
     classifiers_params = {
-        'decision_tree': {'class': sklearn.tree.DecisionTreeClassifier, 'opts': {'max_depth': 10, 'class_weight': 'balanced'}},
-        'random_forest': {'class': sklearn.ensemble.RandomForestClassifier, 'opts': {'max_depth': 10, 'class_weight': 'balanced', 'n_estimators': 10}},
-        'ann_3_100': {'class': sklearn.neural_network.MLPClassifier, 'opts': {'hidden_layer_sizes': (100, 100, 100,)}},
+        'decision_tree': {'class': sklearn.tree.DecisionTreeClassifier, 'opts': {'max_depth': 3, 'class_weight': 'balanced', 'random_state': random_seed}},
+        'random_forest': {'class': sklearn.ensemble.RandomForestClassifier, 'opts': {'max_depth': 10, 'class_weight': 'balanced', 'n_estimators': 2, 'random_state': random_seed}},
+        'ann_3_100': {'class': sklearn.neural_network.MLPClassifier, 'opts': {'hidden_layer_sizes': (5, 5), 'random_state': random_seed, 'max_iter':20}},
     }
 
     classifiers_dict = {}
@@ -159,7 +158,7 @@ def run_notebook_derived_workflow():
     with open('stats.json', 'w') as stats_file:
         json.dump(stats_dict, stats_file)
 
-    km_clusterer = sklearn.cluster.KMeans(n_clusters=5)
+    km_clusterer = sklearn.cluster.KMeans(n_clusters=5, random_state=random_seed)
     km_clusterer.fit(X_train)
 
     subset_df = zones_df[(zones_df['scenario'] == 'ssp434') & (zones_df['period_start'] == 2071)]
