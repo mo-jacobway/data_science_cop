@@ -56,6 +56,7 @@ import matplotlib.pyplot
 import sklearn
 import sklearn.preprocessing
 import sklearn.tree
+import sklearn.exceptions
 
 import pickle
 
@@ -172,4 +173,6 @@ def run_notebook_derived_workflow():
     test_framework.handle_figure_retention(fig2, "02_kmeans_cluster_label_distribution_bar.png")
 
 if __name__ == "__main__":
-    sys.exit(test_framework.execute_workflow(run_notebook_derived_workflow))
+    # Warning categories expected during successful runs.
+    expected_warnings = [sklearn.exceptions.DataConversionWarning, sklearn.exceptions.ConvergenceWarning,]
+    sys.exit(test_framework.execute_workflow(run_notebook_derived_workflow, expected_warnings=expected_warnings))

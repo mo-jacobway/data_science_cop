@@ -40,6 +40,7 @@ import logging
 import pathlib
 import os
 import json
+import warnings
 
 import matplotlib
 matplotlib.use("Agg")
@@ -259,11 +260,16 @@ def handle_success(retention, retained_figures):
 
 # Workflow execution
 
-def execute_workflow(run_notebook_derived_workflow):
+def execute_workflow(run_notebook_derived_workflow, expected_warnings=None):
+    """Invoke a notebook-derived workflow, suppressing only the warning categories a test opts in to via expected_warnings."""
     LOGGER.info(TEST_NAME)
     LOGGER.info("")
     try:
-        run_notebook_derived_workflow()
+        with warnings.catch_warnings():
+            if expected_warnings:
+                for warning_category in expected_warnings:
+                    warnings.filterwarnings("ignore", category=warning_category)
+            run_notebook_derived_workflow()
     except Exception as exc:
         return handle_exception(exc, retention, retained_figures)
 

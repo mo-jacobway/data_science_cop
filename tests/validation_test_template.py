@@ -108,4 +108,10 @@ import test_framework_utils as test_framework
 def run_notebook_derived_workflow():
     pass # ###replace with the full notebook derived workflow###
 if __name__ == "__main__":
-    sys.exit(test_framework.execute_workflow(run_notebook_derived_workflow))
+    # Optional:
+    # expected_warnings = [...]  # Warning categories expected during successful runs.
+
+    sys.exit(test_framework.execute_workflow(
+        run_notebook_derived_workflow
+        # , expected_warnings=expected_warnings
+    ))
